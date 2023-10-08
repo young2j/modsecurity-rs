@@ -12,10 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod exclusion;
-pub mod origin;
-pub mod value;
+pub struct VariableOrigin {
+    pub m_length: i32,
+    pub m_offset: usize,
+}
 
-pub use exclusion::*;
-pub use origin::*;
-pub use value::*;
+impl VariableOrigin {
+    pub fn new() -> VariableOrigin {
+        VariableOrigin {
+            m_length: 0,
+            m_offset: 0,
+        }
+    }
+
+    pub fn to_text(&self) -> String {
+        let text = format!("v{},{}", self.m_offset, self.m_length);
+        text
+    }
+}
