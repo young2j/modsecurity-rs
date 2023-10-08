@@ -1,20 +1,27 @@
 // Copyright 2023 young2j
-// 
+//
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
-// 
+//
 //     http://www.apache.org/licenses/LICENSE-2.0
-// 
+//
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::rule_message::RuleMessage;
+use rand::{rngs::StdRng, SeedableRng};
+
+use super::{enums::LogProperty, rule_message::RuleMessage};
 use crate::collection::Collection;
-use std::{any::Any, rc::Rc};
+use std::{
+    any::Any,
+    env::consts,
+    rc::Rc,
+    time::{SystemTime, UNIX_EPOCH},
+};
 
 pub const MODSECURITY_MAJOR: &str = "3";
 pub const MODSECURITY_MINOR: &str = "0";
@@ -30,71 +37,6 @@ pub fn modsecurity_version() -> String {
     )
 }
 
-pub enum Phases {
-    /**
-     *
-     * The connection is the very first information that ModSecurity can
-     * inspect. It is expected to happens before the virtual host name be
-     * resolved. This phase is expected to happen immediately after a
-     * connection is established.
-     *
-     */
-    ConnectionPhase,
-    /**
-     *
-     * The "URI" phase happens just after the web server (or any other
-     * application that you may use with ModSecurity) have the acknowledgement
-     * of the full request URI.
-     *
-     */
-    UriPhase,
-    /**
-     *
-     * The "RequestHeaders" phase happens when the server has all the
-     * information about the headers. Notice however, that it is expected to
-     * happen prior to the reception of the request body (if any).
-     *
-     */
-    RequestHeadersPhase,
-    /**
-     *
-     * At the "RequestHeaders" phase, ModSecurity is expected to inspect the
-     * content of a request body, that does not happens when the server has all
-     * the content but prior to that, when the body transmission started.
-     * ModSecurity can ask the webserver to block (or make any other disruptive
-     * action) while the client is still transmitting the data.
-     *
-     */
-    RequestBodyPhase,
-    /**
-     *
-     * The "ResponseHeaders" happens just before all the response headers are
-     * ready to be delivery to the client.
-     *
-     */
-    ResponseHeadersPhase,
-    /**
-     *
-     * Same as "RequestBody" the "ResponseBody" phase perform a stream
-     * inspection which may result in a disruptive action.
-     *
-     */
-    ResponseBodyPhase,
-    /**
-     *
-     * The last phase is the logging phase. At this phase ModSecurity will
-     * generate the internal logs, there is no need to hold the request at
-     * this point as this phase does not produce any kind of action.
-     *
-     */
-    LoggingPhase,
-    /**
-     * Just a marking for the expected number of phases.
-     *
-     */
-    NumberOfPhases,
-}
-
 /*
  * The callback is going to be called on every log request.
  *
@@ -108,83 +50,112 @@ pub enum Phases {
  *
  */
 // typedef void (*ModSecLogCb) (void *, const void *);
-// todo
+// todo: logcb definition
 type ModSecLogCb = fn();
 
 pub struct RuleWithOperator {}
 
-/**
- *
- * Properties used to configure the general log callback.
- *
- */
-pub enum LogProperty {
-    /**
-     *
-     * Original ModSecurity text log entry. The same entry that can be found
-     * within the Apache error_log (in the 2.x family)
-     *
-     */
-    TextLogProperty = 1,
-    /**
-     *
-     * Instead of return the text log entry an instance of the class
-     * RuleMessages is returned.
-     *
-     */
-    RuleMessageLogProperty = 2,
-    /**
-     * This property only makes sense with the utilization of the
-     * RuleMessageLogProperty. Without this property set the RuleMessage
-     * structure will not be filled with the information of the hightlight.
-     *
-     * Notice that the highlight can be calculate post-analisys. Calculate it
-     * during the analisys may delay the analisys process.
-     *
-     */
-    IncludeFullHighlightLogProperty = 4,
-}
-
-pub struct ModSecurity {
-    pub m_global_collection: Collection,
-    pub m_resource_collection: Collection,
-    pub m_ip_collection: Collection,
-    pub m_session_collection: Collection,
-    pub m_user_collection: Collection,
+pub struct ModSecurity<C>
+where
+    C: Collection,
+{
+    pub m_global_collection: C,
+    pub m_resource_collection: C,
+    pub m_ip_collection: C,
+    pub m_session_collection: C,
+    pub m_user_collection: C,
     m_connector: String,
     m_whoami: String,
     m_logcb: ModSecLogCb,
     m_log_properties: LogProperty,
 }
 
-impl ModSecurity {
-    // pub fn new() -> Self {
-    //     Self {}
-    // }
+impl<C> ModSecurity<C>
+where
+    C: Collection,
+{
+    pub fn new() -> Self {
+        // todo: uniqueId
 
+        // set random seed
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("Could not get system time")
+            .as_secs();
+        StdRng::seed_from_u64(timestamp);
+
+        // todo: curl or xml init?
+        // curl_global_init(CURL_GLOBAL_ALL);
+        // xmlInitParser();
+
+        // todo: to CamelCase
+        let platform = consts::OS;
+        let m_whoami = format!("ModSecurity v{} ({})", modsecurity_version(), platform);
+        ModSecurity {
+            m_global_collection: C::new("GLOBAL"),
+            m_resource_collection: C::new("RESOURCE"),
+            m_ip_collection: C::new("IP"),
+            m_session_collection: C::new("SESSION"),
+            m_user_collection: C::new("USER"),
+            m_connector: String::new(),
+            m_whoami,
+            // todo: logcb init
+            m_logcb: || {},
+            m_log_properties: LogProperty::TextLogProperty,
+        }
+    }
+
+    /// Return information about this ModSecurity version and platform
+    ///
+    /// Platform and version are two questions that community will ask prior to
+    /// provide support. Making it available internally and to the connector as well.
+    ///
+    /// This information maybe will be used by a log parser. If you want to
+    /// update it, make it in a fashion that won't break the existent parsers.
+    ///   (e.g. adding extra information _only_ to the end of the string)
+    ///
     pub fn who_am_i(&self) -> &str {
         &self.m_whoami
     }
 
+    /// Set information about the connector that is using the library.
+    ///
+    /// For the purpose of log it is necessary for modsecurity to understand which
+    /// 'connector' is consuming the API.
+    ///
+    /// It is strongly recommended to set a information in the following
+    ///       pattern:
+    ///
+    ///       ConnectorName vX.Y.Z-tag (something else)
+    ///       For instance: ModSecurity-nginx v0.0.1-alpha (Whee)
+    ///
     pub fn set_connector_information(&mut self, connector: &str) {
         self.m_connector = String::from(connector);
     }
 
-    pub fn set_server_logcb(&mut self, cb: ModSecLogCb) {
-        self.m_logcb = cb;
-    }
-
-    pub fn set_server_logcb_with_prop(&mut self, cb: ModSecLogCb, properties: LogProperty) {
-        self.m_logcb = cb;
-        self.m_log_properties = properties;
-    }
-
-    pub fn server_log(&self, data: &dyn Any, rm: Rc<RuleMessage>) {}
-
+    /// Returns the connector information.
+    ///
+    /// Returns whatever was set by 'set_connector_information'. Check
+    /// set_connector_information documentation to understand the expected format.
+    ///
     pub fn get_connector_information(&self) -> &str {
         &self.m_connector
     }
 
+    pub fn server_log(&self, data: &dyn Any, rm: Rc<RuleMessage>) {
+        // todo: server log
+    }
+
+    pub fn set_server_logcb(&mut self, cb: ModSecLogCb) {
+        self.set_server_logcb_with_properties(cb, LogProperty::TextLogProperty);
+    }
+
+    pub fn set_server_logcb_with_properties(&mut self, cb: ModSecLogCb, properties: LogProperty) {
+        self.m_logcb = cb;
+        self.m_log_properties = properties;
+    }
+
+    // todo: json
     pub fn process_content_offset(
         content: &str,
         len: usize,
