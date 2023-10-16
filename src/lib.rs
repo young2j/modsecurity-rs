@@ -14,5 +14,8 @@
 
 pub mod collection;
 
+pub mod actions;
 pub mod modsecurity;
+pub mod rules;
+pub mod transaction;
 pub mod variables;

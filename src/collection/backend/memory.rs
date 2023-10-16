@@ -32,6 +32,7 @@ impl Collection for InMemoryPerProcess {
     fn new(name: &str) -> InMemoryPerProcess {
         InMemoryPerProcess {
             m_name: name.to_string(),
+            // todo: whether key is case insensitive?
             collection: HashMap::with_capacity(1000),
             lock: Mutex::new(()),
         }
@@ -77,20 +78,14 @@ impl Collection for InMemoryPerProcess {
     fn resolve_first(&self, key: &str) -> Option<&str> {
         match self.collection.get(key) {
             None => None,
-            Some(ll) => {
-                if let Some(first) = ll.front() {
-                    return Some(first);
-                }
-
-                None
-            }
+            Some(ll) => ll.front().and_then(|first| Some(first.as_str())),
         }
     }
 
     fn resolve_single_match(&self, key: &str, mut l: Vec<VariableValue>) {
         self.collection.get(key).iter().for_each(|ll| {
             for v in ll.iter() {
-                l.push(VariableValue::new(&self.m_name, key, v));
+                l.push(VariableValue::new_with_collection(&self.m_name, key, v));
             }
         });
     }
@@ -100,15 +95,17 @@ impl Collection for InMemoryPerProcess {
         if key.len() == 0 {
             self.collection.iter().for_each(|(k, ll)| {
                 if !ke.to_omit(k) {
-                    ll.iter()
-                        .for_each(|v| l.insert(0, VariableValue::new(&self.m_name, k, v)))
+                    ll.iter().for_each(|v| {
+                        l.insert(0, VariableValue::new_with_collection(&self.m_name, k, v))
+                    })
                 }
             })
         } else {
             self.collection.get(key).iter().for_each(|ll| {
                 if !ke.to_omit(key) {
-                    ll.iter()
-                        .for_each(|v| l.insert(0, VariableValue::new(&self.m_name, key, v)))
+                    ll.iter().for_each(|v| {
+                        l.insert(0, VariableValue::new_with_collection(&self.m_name, key, v))
+                    })
                 }
             })
         }
@@ -126,8 +123,9 @@ impl Collection for InMemoryPerProcess {
             // todo: Regex
             // .filter(|(k, _)| regex_search(re_key))
             .for_each(|(k, ll)| {
-                ll.iter()
-                    .for_each(|v| l.insert(0, VariableValue::new(&self.m_name, k, v)))
+                ll.iter().for_each(|v| {
+                    l.insert(0, VariableValue::new_with_collection(&self.m_name, k, v))
+                })
             })
     }
 }

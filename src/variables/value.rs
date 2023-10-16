@@ -3,7 +3,7 @@ use std::collections::LinkedList;
 use super::VariableOrigin;
 
 pub struct VariableValue {
-    m_orign: LinkedList<VariableOrigin>,
+    m_origin: LinkedList<VariableOrigin>,
     m_collection: String,
     m_key: String,
     m_key_with_collection: String,
@@ -11,7 +11,23 @@ pub struct VariableValue {
 }
 
 impl VariableValue {
-    pub fn new(collection_name: &str, key: &str, value: &str) -> VariableValue {
+    pub fn new(key: &str, value: Option<&str>) -> VariableValue {
+        let m_value = if let Some(v) = value {
+            v.to_string()
+        } else {
+            "".to_string()
+        };
+
+        VariableValue {
+            m_origin: LinkedList::new(),
+            m_collection: String::new(),
+            m_key: String::from(key),
+            m_key_with_collection: String::from(key),
+            m_value,
+        }
+    }
+
+    pub fn new_with_collection(collection_name: &str, key: &str, value: &str) -> VariableValue {
         let key_with_collection = if collection_name.len() == 0 {
             key.to_string()
         } else {
@@ -22,15 +38,24 @@ impl VariableValue {
             m_key: key.to_string(),
             m_value: value.to_string(),
             m_collection: collection_name.to_string(),
-            m_orign: LinkedList::new(),
+            m_origin: LinkedList::new(),
         }
     }
-    pub fn from_variable_value(&mut self, vv: VariableValue) {
-        self.m_collection = vv.m_collection;
-        self.m_key = vv.m_key;
-        self.m_key_with_collection = vv.m_key_with_collection;
-        self.m_value = vv.m_value;
-        self.m_orign.extend(vv.m_orign.into_iter());
+
+    pub fn new_from(vv: &VariableValue) -> VariableValue {
+        let m_origin = LinkedList::from_iter(
+            vv.m_origin
+                .iter()
+                .map(|o| VariableOrigin::new_with_props(o.m_length, o.m_offset)),
+        );
+
+        VariableValue {
+            m_origin,
+            m_collection: String::from(&vv.m_collection),
+            m_key: String::from(&vv.m_key),
+            m_key_with_collection: String::from(&vv.m_key_with_collection),
+            m_value: String::from(&vv.m_value),
+        }
     }
 
     pub fn get_key(&self) -> &str {
@@ -53,11 +78,11 @@ impl VariableValue {
         self.m_value = value.to_string();
     }
 
-    pub fn add_origin(&mut self, vo: VariableOrigin) {
-        self.m_orign.push_back(vo);
+    pub fn add_origin(&mut self, origin: VariableOrigin) {
+        self.m_origin.push_back(origin);
     }
 
     pub fn get_origin(&self) -> &LinkedList<VariableOrigin> {
-        &self.m_orign
+        &self.m_origin
     }
 }

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 pub struct VariableOrigin {
-    pub m_length: i32,
+    pub m_length: usize,
     pub m_offset: usize,
 }
 
@@ -25,8 +25,23 @@ impl VariableOrigin {
         }
     }
 
+    pub fn new_with_props(length: usize, offset: usize) -> VariableOrigin {
+        VariableOrigin {
+            m_length: length,
+            m_offset: offset,
+        }
+    }
+
     pub fn to_text(&self) -> String {
         let text = format!("v{},{}", self.m_offset, self.m_length);
         text
+    }
+
+    pub fn set_length(&mut self, length: usize) {
+        self.m_length = length;
+    }
+
+    pub fn set_offset(&mut self, offset: usize) {
+        self.m_offset = offset;
     }
 }

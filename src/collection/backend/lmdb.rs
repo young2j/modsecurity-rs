@@ -27,7 +27,7 @@ use crate::{
 };
 
 pub struct LMDB {
-    name: String,
+    m_name: String,
     db: Database<'static>,
     w_txn: WriteTransaction<'static>,
     r_txn: ReadTransaction<'static>,
@@ -59,7 +59,7 @@ impl Collection for LMDB {
         let r_txn = ReadTransaction::new(env.clone()).unwrap();
 
         LMDB {
-            name: name.to_string(),
+            m_name: name.to_string(),
             db,
             w_txn,
             r_txn,
@@ -124,7 +124,11 @@ impl Collection for LMDB {
         loop {
             let item = cursor.get_multiple::<LmdbKV>(&r_access);
             match item {
-                Ok(val) => l.push(VariableValue::new(&self.name, key, val.data)),
+                Ok(val) => l.push(VariableValue::new_with_collection(
+                    &self.m_name,
+                    key,
+                    val.data,
+                )),
                 _ => break,
             }
         }
@@ -139,7 +143,10 @@ impl Collection for LMDB {
                 Err(_) => return,
                 Ok((k, v)) => {
                     if !ke.to_omit(k.data) {
-                        l.insert(0, VariableValue::new(&self.name, k.data, v.data));
+                        l.insert(
+                            0,
+                            VariableValue::new_with_collection(&self.m_name, k.data, v.data),
+                        );
                     }
                 }
             }
@@ -149,7 +156,10 @@ impl Collection for LMDB {
                     Err(_) => break,
                     Ok((k, v)) => {
                         if !ke.to_omit(k.data) {
-                            l.insert(0, VariableValue::new(&self.name, k.data, v.data));
+                            l.insert(
+                                0,
+                                VariableValue::new_with_collection(&self.m_name, k.data, v.data),
+                            );
                         }
                     }
                 }
@@ -163,7 +173,10 @@ impl Collection for LMDB {
                 Err(_) => return,
                 Ok(val) => {
                     if !ke.to_omit(key) {
-                        l.insert(0, VariableValue::new(&self.name, key, val.data));
+                        l.insert(
+                            0,
+                            VariableValue::new_with_collection(&self.m_name, key, val.data),
+                        );
                     }
                 }
             }
@@ -173,7 +186,10 @@ impl Collection for LMDB {
                     Err(_) => break,
                     Ok((k, v)) => {
                         if !ke.to_omit(k.data) {
-                            l.insert(0, VariableValue::new(&self.name, k.data, v.data));
+                            l.insert(
+                                0,
+                                VariableValue::new_with_collection(&self.m_name, k.data, v.data),
+                            );
                         }
                     }
                 }
@@ -195,7 +211,10 @@ impl Collection for LMDB {
             Ok((k, v)) => {
                 if !ke.to_omit(k.data) {
                     // && regex_search(re_key)
-                    l.insert(0, VariableValue::new(&self.name, k.data, v.data));
+                    l.insert(
+                        0,
+                        VariableValue::new_with_collection(&self.m_name, k.data, v.data),
+                    );
                 }
             }
         }
@@ -207,7 +226,10 @@ impl Collection for LMDB {
                 Ok((k, v)) => {
                     if !ke.to_omit(k.data) {
                         // && regex_search(re_key)
-                        l.insert(0, VariableValue::new(&self.name, k.data, v.data));
+                        l.insert(
+                            0,
+                            VariableValue::new_with_collection(&self.m_name, k.data, v.data),
+                        );
                     }
                 }
             }

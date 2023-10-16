@@ -14,8 +14,8 @@
 
 use rand::{rngs::StdRng, SeedableRng};
 
-use super::{enums::LogProperty, rule_message::RuleMessage};
-use crate::collection::Collection;
+use super::enums::LogProperty;
+use crate::{collection::Collection, rules::RuleMessage};
 use std::{
     any::Any,
     env::consts,

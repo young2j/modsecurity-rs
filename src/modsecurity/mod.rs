@@ -15,7 +15,6 @@
 pub mod actions;
 pub mod enums;
 pub mod modsecurity;
-pub mod rule_message;
 
 #[test]
 fn test() {
